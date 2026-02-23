@@ -1,0 +1,154 @@
+version: '3.8'
+
+services:
+  # =====================================================
+  # POSTGRESQL (Data Warehouse)
+  # =====================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: medical-postgres
+    environment:
+      POSTGRES_USER: medical_user
+      POSTGRES_PASSWORD: MedicalDB_Pass2024!
+      POSTGRES_DB: medical_datawarehouse
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medical_user -d medical_datawarehouse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medical-network
+
+  # =====================================================
+  # MYSQL (Source Legacy)
+  # =====================================================
+  mysql:
+    image: mysql:8.0
+    container_name: medical-mysql-source
+    environment:
+      MYSQL_ROOT_PASSWORD: MySQL_Root_2024!
+      MYSQL_DATABASE: hospital_legacy
+      MYSQL_USER: source_reader
+      MYSQL_PASSWORD: Source_Read_2024!
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init-mysql.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pMySQL_Root_2024!"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medical-network
+
+  # =====================================================
+  # PHPMYADMIN (MySQL UI)
+  # =====================================================
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: medical-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: MySQL_Root_2024!
+      PMA_ARBITRARY: 1
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - medical-network
+    restart: unless-stopped
+
+  # =====================================================
+  # MINIO (Stockage Objet S3-Compatible)
+  # =====================================================
+  minio:
+    image: minio/minio:latest
+    container_name: medical-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # API S3
+      - "9001:9001"   # Console Web
+    environment:
+      MINIO_ROOT_USER: medicaladmin
+      MINIO_ROOT_PASSWORD: MedicalSecurePass123!
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - medical-network
+
+  # =====================================================
+  # MINIO INIT (Création buckets Medallion)
+  # =====================================================
+  minio-init:
+    image: minio/mc:latest
+    container_name: medical-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Attente de MinIO...';
+      sleep 10;
+      /usr/bin/mc config host add medicalminio http://minio:9000 medicaladmin MedicalSecurePass123!;
+      echo 'Creation des buckets Medallion...';
+      /usr/bin/mc mb -p medicalminio/bronze;
+      /usr/bin/mc mb -p medicalminio/silver;
+      /usr/bin/mc mb -p medicalminio/gold;
+      /usr/bin/mc mb -p medicalminio/scripts;
+      /usr/bin/mc mb -p medicalminio/backups;
+      echo 'Configuration des policies...';
+      /usr/bin/mc anonymous set download medicalminio/bronze;
+      /usr/bin/mc anonymous set download medicalminio/silver;
+      /usr/bin/mc anonymous set download medicalminio/gold;
+      echo 'Buckets crees avec succes!';
+      /usr/bin/mc ls medicalminio;
+      "
+    networks:
+      - medical-network
+
+  # =====================================================
+  # API (PostgreSQL)
+  # =====================================================
+  api-medical:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: medical-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://medical_user:MedicalDB_Pass2024!@postgres:5432/medical_datawarehouse
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+    networks:
+      - medical-network
+
+volumes:
+  postgres_data:
+  mysql_data:
+  minio_data:
+
+networks:
+  medical-network:
+    driver: bridge
