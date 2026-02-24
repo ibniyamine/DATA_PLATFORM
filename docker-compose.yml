@@ -72,30 +72,32 @@ services:
     restart: unless-stopped
 
   # =====================================================
-  # MINIO (Stockage Objet S3-Compatible)
+  # MINIO (Stockage Objet)
   # =====================================================
   minio:
     image: minio/minio:latest
     container_name: medical-minio
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"   # API S3
-      - "9001:9001"   # Console Web
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: medicaladmin
       MINIO_ROOT_PASSWORD: MedicalSecurePass123!
     volumes:
       - minio_data:/data
+      - ./data:/data-local:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
       - medical-network
 
   # =====================================================
-  # MINIO INIT (Création buckets Medallion)
+  # MINIO INIT (Création buckets)
   # =====================================================
   minio-init:
     image: minio/mc:latest
@@ -103,26 +105,51 @@ services:
     depends_on:
       minio:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      echo 'Attente de MinIO...';
-      sleep 10;
-      /usr/bin/mc config host add medicalminio http://minio:9000 medicaladmin MedicalSecurePass123!;
-      echo 'Creation des buckets Medallion...';
-      /usr/bin/mc mb -p medicalminio/bronze;
-      /usr/bin/mc mb -p medicalminio/silver;
-      /usr/bin/mc mb -p medicalminio/gold;
-      /usr/bin/mc mb -p medicalminio/scripts;
-      /usr/bin/mc mb -p medicalminio/backups;
-      echo 'Configuration des policies...';
-      /usr/bin/mc anonymous set download medicalminio/bronze;
-      /usr/bin/mc anonymous set download medicalminio/silver;
-      /usr/bin/mc anonymous set download medicalminio/gold;
-      echo 'Buckets crees avec succes!';
-      /usr/bin/mc ls medicalminio;
-      "
+    volumes:
+      - ./data:/data-local:ro
+      - ./scripts/init-minio.sh:/init.sh:ro
+    entrypoint: /bin/sh -c "chmod +x /init.sh && /init.sh"
     networks:
       - medical-network
+    restart: on-failure
+
+  # =====================================================
+  # PYTHON + PYSPARK (Image pré-construite)
+  # =====================================================
+  python-spark:
+    build:
+      context: .
+      dockerfile: ./docker/python-spark/Dockerfile
+    container_name: medical-python-spark
+    ports:
+      - "8888:8888"
+    environment:
+      - DATABASE_URL=postgresql://medical_user:MedicalDB_Pass2024!@postgres:5432/medical_datawarehouse
+      - MYSQL_URL=mysql+mysqlconnector://source_reader:Source_Read_2024!@mysql:3306/hospital_legacy
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=medicaladmin
+      - MINIO_SECRET_KEY=MedicalSecurePass123!
+      - GRANT_SUDO=yes
+    user: root
+    volumes:
+      - ./notebooks:/home/jovyan/work/notebooks
+      - ./scripts:/home/jovyan/work/scripts
+      - ./data:/home/jovyan/work/data:ro
+    working_dir: /home/jovyan/work
+    command: >
+      start-notebook.sh --NotebookApp.token='' --NotebookApp.notebook_dir=/home/jovyan/work
+
+    networks:
+      - medical-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
 
   # =====================================================
   # API (PostgreSQL)
@@ -139,8 +166,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./api:/app
     networks:
       - medical-network
 

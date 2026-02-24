@@ -1,0 +1,11 @@
+patient_id,first_name,last_name,date_of_birth,gender,city,blood_type,phone,email,registration_date
+PAT-001,Jean,Martin,1985-03-15,M,Paris,A+,0612345678,jean.martin@email.com,2024-01-10
+PAT-002,Marie,Bernard,1990-07-22,F,Lyon,O-,0698765432,marie.bernard@email.com,2024-01-15
+PAT-003,Pierre,Dubois,1978-11-08,M,Marseille,B+,0654321987,pierre.dubois@email.com,2024-02-01
+PAT-004,Sophie,Thomas,1982-09-30,F,Toulouse,AB+,0678912345,sophie.thomas@email.com,2024-02-20
+PAT-005,Michel,Robert,1975-12-12,M,Nice,A-,0632165498,michel.robert@email.com,2024-03-05
+PAT-006,Christine,Petit,1988-04-18,F,Nantes,O+,0645678912,christine.petit@email.com,2024-03-12
+PAT-007,Philippe,Durand,1980-06-25,M,Strasbourg,B-,0689123456,philippe.durand@email.com,2024-03-18
+PAT-008,Nathalie,Leroy,1992-08-14,F,Montpellier,A+,0612987654,nathalie.leroy@email.com,2024-03-25
+PAT-009,François,Moreau,1973-02-28,M,Bordeaux,AB-,0623456789,francois.moreau@email.com,2024-04-02
+PAT-010,Isabelle,Roux,1986-10-05,F,Lille,O-,0634567890,isabelle.roux@email.com,2024-04-10
