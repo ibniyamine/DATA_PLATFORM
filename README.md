@@ -1,7 +1,8 @@
 🏥 Medical Data Pipeline
 1. Présentation
 
-Ce projet met en place une architecture Data Pipeline complète pour la gestion des données médicales à partir de sources legacy MySQL et fichiers CSV, avec stockage objet MinIO.
+Ce projet met en place une architecture Data Pipeline complète pour la gestion des données médicales à partir de sources legacy MySQL, API de petient et fichiers CSV, avec stockage objet MinIO.
+
 Le pipeline suit le modèle Bronze → Silver → Gold pour l’ingestion, la transformation et la mise à disposition des données pour l’analyse.
 
 Technologies utilisées :
@@ -42,12 +43,18 @@ project-root/
 
 3. Services Docker
 Service	Description
-postgres	source de stockage des donnes patients (PostgreSQL).
-mysql	Source de données legacy pour les patients.
-phpmyadmin	Interface graphique pour visualiser les données MySQL.
-minio	Stockage objet pour Bronze / Silver / Gold.
-minio-init	Initialisation des buckets MinIO.
-python-spark	Environnement Jupyter avec PySpark pour l’ingestion et la transformation.
+postgres 	: source de stockage des donnes patients (PostgreSQL).
+
+mysql	: Source de données legacy pour les patients.
+
+phpmyadmin	 : Interface graphique pour visualiser les données MySQL.
+
+minio	 : Stockage objet pour Bronze / Silver / Gold.
+
+minio-init :  Initialisation des buckets MinIO.
+
+python-spark	: Environnement Jupyter avec PySpark pour l’ingestion et la transformation.
+
 api-medical	API REST fournissant les données de visites médicales.
 4. Pré-requis
 
@@ -85,7 +92,7 @@ API Visites : http://localhost:8000/visits
 6. Pipeline de données
 6.1. Bronze
 
-Ingestion brute des fichiers CSV et des tables MySQL.
+Ingestion brute des fichiers CSV, API et  des tables MySQL
 
 Stockage des données dans MinIO (format Parquet).
 
@@ -93,7 +100,7 @@ Stockage des données dans MinIO (format Parquet).
 
 Nettoyage des données (dates, doublons, nulls).
 
-Uniformisation des formats et enrichissement si nécessaire.
+Uniformisation des formats et jointure entre les donnees patients de l'API et ceux de la db Mysql.
 
 6.3. Gold
 
