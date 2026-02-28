@@ -42,9 +42,9 @@ project-root/
 
 3. Services Docker
 Service	Description
-postgres	Data Warehouse pour stockage analytique (PostgreSQL).
+postgres	source de stockage des donnes patients (PostgreSQL).
 mysql	Source de données legacy pour les patients.
-phpmyadmin	Interface graphique pour MySQL.
+phpmyadmin	Interface graphique pour visualiser les données MySQL.
 minio	Stockage objet pour Bronze / Silver / Gold.
 minio-init	Initialisation des buckets MinIO.
 python-spark	Environnement Jupyter avec PySpark pour l’ingestion et la transformation.
